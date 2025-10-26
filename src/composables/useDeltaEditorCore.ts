@@ -2,18 +2,31 @@ import { ref, type Ref } from "vue";
 import type { Delta, DeltaAttributes } from "../types/delta";
 import { deltaToHTML } from "./useDeltaRender";
 import { htmlToDelta } from "./useDeltaFromHTML";
+import { useSelection } from "./useSelection";
 
-export const useDeltaEditorCore = (editorElRef: Ref<HTMLDivElement | null>) => {
+export const useDeltaEditorCore = (
+  editorElRef: Ref<HTMLDivElement | null>,
+  selectionManager?: ReturnType<typeof useSelection>
+) => {
   const delta = ref<Delta>([{ insert: "欢迎使用 Delta 编辑器\n" }]);
   let lastHTML = deltaToHTML(delta.value);
   let isRendering = false;
+  const internalSelection = selectionManager || useSelection(editorElRef);
+  const { savedSelection, restoreSelection } = internalSelection;
 
   const renderToDOM = (): void => {
     if (!editorElRef.value) return;
+    const deltaRange = internalSelection.getSelectedDeltaRange();
     isRendering = true;
     editorElRef.value.innerHTML = deltaToHTML(delta.value);
     lastHTML = editorElRef.value.innerHTML;
     isRendering = false;
+    if (deltaRange) {
+      internalSelection.setSelectionByDeltaPosition(
+        deltaRange.start,
+        deltaRange.end
+      );
+    }
   };
 
   const getText = (): string => {
@@ -30,13 +43,15 @@ export const useDeltaEditorCore = (editorElRef: Ref<HTMLDivElement | null>) => {
     if (currentHTML === lastHTML) return;
 
     try {
+      savedSelection()
       const newDalta = htmlToDelta(currentHTML);
-
       delta.value = newDalta;
       lastHTML = currentHTML;
+      restoreSelection()
     } catch (error) {
       console.error("Failed to parse HTML to Delta", error);
       editorElRef.value.innerHTML = lastHTML;
+      restoreSelection()
     }
   };
 
