@@ -34,8 +34,10 @@ export const useFormatting = (
       const opEnd = pos + opLength;
 
       if (opEnd > start && opStart < end) {
-        if (op.attributes && op.attributes[format]) {
-          return true;
+        if (format === "header") {
+          return op.attributes?.header !== undefined;
+        } else {
+          return op.attributes?.[format] === true;
         }
       }
       pos += opLength;

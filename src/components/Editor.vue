@@ -10,9 +10,9 @@ const selection = useSelection(editorEl);
 const core = useDeltaEditorCore(editorEl, selection);
 const formatting = useFormatting(editorEl, core);
 
-const toggleBold = () => {
-  const isActive = formatting.isFormatActive("bold");
-  formatting.applyFormat("bold", !isActive);
+const toggleFormat = (format: "bold" | "italic" | "underline") => {
+  const isActive = formatting.isFormatActive(format);
+  formatting.applyFormat(format, !isActive);
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -22,8 +22,16 @@ const handleKeydown = (e: KeyboardEvent) => {
       core.undo();
     } else if (e.key == "y" || (e.key === "z" && e.shiftKey)) {
       e.preventDefault();
-      console.log(e)
+      console.log(e);
       core.redo();
+    } else if (e.key === "b") {
+      e.preventDefault();
+      toggleFormat("bold");
+    } else if (e.key === "i") {
+      toggleFormat("italic");
+    } else if (e.key === "u") {
+      e.preventDefault();
+      toggleFormat("underline");
     }
   }
 };
@@ -33,25 +41,41 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="editor-container" @keydown="handleKeydown">
+  <div class="editor-container">
     <!-- 工具栏 -->
     <div class="toolbar">
       <button
         class="toolbar-btn"
-        @click="toggleBold"
+        @click="toggleFormat('bold')"
         :class="{ active: formatting.isFormatActive('bold') }"
       >
-        B
+        <strong>B</strong>
+      </button>
+      <button
+        class="toolbar-btn"
+        @click="toggleFormat('italic')"
+        :class="{ active: formatting.isFormatActive('italic') }"
+      >
+        <em>I</em>
+      </button>
+      <button
+        class="toolbar-btn"
+        @click="toggleFormat('underline')"
+        :class="{ active: formatting.isFormatActive('underline') }"
+      >
+        <span style="text-decoration: underline">U</span>
       </button>
       <button
         class="toolbar-btn"
         @click="() => formatting.applyFormat('header', 1)"
+        :class="{ active: formatting.isFormatActive('header') }"
       >
         H1
       </button>
       <button
         class="toolbar-btn"
         @click="() => formatting.applyFormat('header', 2)"
+        :class="{ active: formatting.isFormatActive('header') }"
       >
         H2
       </button>
@@ -60,6 +84,7 @@ onMounted(() => {
       ref="editorEl"
       class="editor"
       contenteditable="true"
+      @keydown="handleKeydown"
       @input="core.handleInput"
       @blur="core.handleInput"
     ></div>
@@ -69,6 +94,7 @@ onMounted(() => {
 <style scoped>
 /* 编辑器容器 */
 .editor-container {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   max-width: 800px;
   margin: 20px auto;
   border-radius: 8px;
