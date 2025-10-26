@@ -8,7 +8,7 @@ export interface DeltaAttributes {
 
 export interface InsertOp {
   insert: string;
-  arrributes?: DeltaAttributes;
+  attributes?: DeltaAttributes;
 }
 
 export interface DeleteOp {

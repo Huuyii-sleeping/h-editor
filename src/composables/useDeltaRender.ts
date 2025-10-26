@@ -14,7 +14,7 @@ const applyAttributes = (el: HTMLElement, attrs: DeltaAttributes): void => {
   // TODO: 列表需要进行特殊处理
 };
 
-export const deltaHTML = (delta: Delta): string => {
+export const deltaToHTML = (delta: Delta): string => {
   const container = document.createElement("div");
 
   for (const op of delta) {
@@ -27,13 +27,14 @@ export const deltaHTML = (delta: Delta): string => {
 
       const span = document.createElement("span");
       span.textContent = text;
-      if (op.arrributes) {
-        applyAttributes(span, op.arrributes);
+      if (op.attributes) {
+        applyAttributes(span, op.attributes);
       }
       container.appendChild(span);
     }
+    // TODO：处理 delete和retain
   }
-  return container.innerHTML
+  return container.innerHTML  
 };
 
 
