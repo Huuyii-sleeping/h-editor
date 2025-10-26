@@ -1,8 +1,9 @@
-import { ref, type Ref } from "vue";
+import { ref, watch, type Ref } from "vue";
 import type { Delta, DeltaAttributes } from "../types/delta";
 import { deltaToHTML } from "./useDeltaRender";
 import { htmlToDelta } from "./useDeltaFromHTML";
 import { useSelection } from "./useSelection";
+import { useHistory } from "./useHistory";
 
 export const useDeltaEditorCore = (
   editorElRef: Ref<HTMLDivElement | null>,
@@ -11,8 +12,46 @@ export const useDeltaEditorCore = (
   const delta = ref<Delta>([{ insert: "欢迎使用 Delta 编辑器\n" }]);
   let lastHTML = deltaToHTML(delta.value);
   let isRendering = false;
+  let undoing = false;
+  let redoing = false;
   const internalSelection = selectionManager || useSelection(editorElRef);
   const { savedSelection, restoreSelection } = internalSelection;
+  const history = useHistory();
+  history.save(delta.value);
+
+  watch(
+    delta,
+    (newDelta) => {
+      if (undoing) {
+        undoing = false;
+        return;
+      }
+      if (redoing) {
+        redoing = false;
+        return;
+      }
+      history.save(newDelta);
+    },
+    { deep: true }
+  );
+
+  const undo = () => {
+    undoing = true;
+    const prev = history.undo();
+    if (prev) {
+      delta.value = prev;
+      renderToDOM();
+    }
+  };
+
+  const redo = () => {
+    redoing = true;
+    const next = history.redo();
+    if (next) {
+      delta.value = next;
+      renderToDOM();
+    }
+  };
 
   const renderToDOM = (): void => {
     if (!editorElRef.value) return;
@@ -43,15 +82,15 @@ export const useDeltaEditorCore = (
     if (currentHTML === lastHTML) return;
 
     try {
-      savedSelection()
+      savedSelection();
       const newDalta = htmlToDelta(currentHTML);
       delta.value = newDalta;
       lastHTML = currentHTML;
-      restoreSelection()
+      restoreSelection();
     } catch (error) {
       console.error("Failed to parse HTML to Delta", error);
       editorElRef.value.innerHTML = lastHTML;
-      restoreSelection()
+      restoreSelection();
     }
   };
 
@@ -138,5 +177,9 @@ export const useDeltaEditorCore = (
     insertText,
     formatRange,
     handleInput,
+    undo,
+    redo,
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
   };
 };

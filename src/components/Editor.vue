@@ -14,13 +14,26 @@ const toggleBold = () => {
   const isActive = formatting.isFormatActive("bold");
   formatting.applyFormat("bold", !isActive);
 };
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === "z" && !e.shiftKey) {
+      e.preventDefault();
+      core.undo();
+    } else if (e.key == "y" || (e.key === "z" && e.shiftKey)) {
+      e.preventDefault();
+      console.log(e)
+      core.redo();
+    }
+  }
+};
 onMounted(() => {
   core.renderToDOM();
 });
 </script>
 
 <template>
-  <div class="editor-container">
+  <div class="editor-container" @keydown="handleKeydown">
     <!-- 工具栏 -->
     <div class="toolbar">
       <button
