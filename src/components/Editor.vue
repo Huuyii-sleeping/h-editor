@@ -30,6 +30,18 @@ onMounted(() => {
       >
         B
       </button>
+      <button
+        class="toolbar-btn"
+        @click="() => formatting.applyFormat('header', 1)"
+      >
+        H1
+      </button>
+      <button
+        class="toolbar-btn"
+        @click="() => formatting.applyFormat('header', 2)"
+      >
+        H2
+      </button>
     </div>
     <div
       ref="editorEl"

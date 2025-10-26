@@ -1,16 +1,18 @@
 import type { Delta, DeltaAttributes } from "../types/delta";
 
-const applyAttributes = (el: HTMLElement, attrs: DeltaAttributes): void => {
-  if (attrs.bold) el.style.fontWeight = "bold";
-  if (attrs.italic) el.style.fontStyle = "italic";
-  if (attrs.underline) el.style.textDecoration = "underline";
-
+const applyAttributes = (text: string, attrs: DeltaAttributes): Node => {
   if (attrs.header) {
-    const heading = document.createElement(`h${attrs.header}`);
-    heading.innerHTML = el.innerHTML;
-    el.replaceWith(heading);
+    const el = document.createElement(`h${attrs.header}`);
+    el.textContent = text;
+    return el;
   }
 
+  const span = document.createElement("span");
+  span.textContent = text;
+  if (attrs.bold) span.style.fontWeight = "bold";
+  if (attrs.italic) span.style.fontStyle = "italic";
+  if (attrs.underline) span.style.textDecoration = "underline";
+  return span;
   // TODO: 列表需要进行特殊处理
 };
 
@@ -25,16 +27,12 @@ export const deltaToHTML = (delta: Delta): string => {
         continue;
       }
 
-      const span = document.createElement("span");
-      span.textContent = text;
-      if (op.attributes) {
-        applyAttributes(span, op.attributes);
-      }
-      container.appendChild(span);
+      const node = op.attributes
+        ? applyAttributes(text, op.attributes)
+        : document.createTextNode(text);
+      container.appendChild(node);
     }
     // TODO：处理 delete和retain
   }
-  return container.innerHTML  
+  return container.innerHTML;
 };
-
-

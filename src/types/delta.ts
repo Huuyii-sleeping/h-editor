@@ -2,7 +2,7 @@ export interface DeltaAttributes {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
-  header?: number;
+  header?: 1 | 2;
   list?: "bullet" | "ordered";
 }
 
