@@ -3,7 +3,11 @@ export interface DeltaAttributes {
   italic?: boolean;
   underline?: boolean;
   header?: 1 | 2;
+  strike?: boolean;
   list?: "bullet" | "ordered";
+  color?: string;
+  background?: string;
+  link?: string
 }
 
 export interface InsertOp {

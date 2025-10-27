@@ -16,9 +16,78 @@ ol {
   list-style: none;
 }
 
+/* 全局a标签基础样式 */
 a {
-  text-decoration: none;
-  color: inherit;
+  color: #2f5496; /* 主色调，与编辑器主题统一 */
+  text-decoration: none; /* 移除默认下划线 */
+  font-weight: 500;
+  position: relative;
+  padding-bottom: 0.5px; /* 为下划线预留空间 */
+  transition: color 0.2s ease;
+}
+
+/* 下划线动效（hover时展开） */
+a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 1.5px;
+  background-color: #2f5496;
+  transition: width 0.3s ease;
+}
+
+/* hover状态 */
+a:hover {
+  color: #234075; /* 深色变体，增强反馈 */
+}
+
+a:hover::after {
+  width: 100%; /* 下划线完全展开 */
+}
+
+/* 点击状态 */
+a:active {
+  color: #1a3059; /* 更深色，强化交互感 */
+}
+
+/* 已访问链接（保持一致性） */
+a:visited {
+  color: #4a6fc1; /* 稍浅色调，区分与未访问链接混淆 */
+}
+
+/* 禁用状态（如需） */
+a:disabled {
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+a:disabled::after {
+  background-color: #adb5bd;
+}
+
+/* 适配导航栏/按钮式链接（如需特殊处理） */
+nav a,
+.button-link {
+  display: inline-block;
+  padding: 8px 16px;
+  margin: 0 4px;
+  border-radius: 6px;
+  color: #fff;
+  background-color: #2f5496;
+}
+
+nav a::after,
+.button-link::after {
+  display: none; /* 取消按钮式链接的下划线 */
+}
+
+nav a:hover,
+.button-link:hover {
+  color: #fff;
+  background-color: #234075;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(47, 84, 150, 0.2);
 }
 
 img,

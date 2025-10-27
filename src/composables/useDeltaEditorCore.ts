@@ -105,7 +105,7 @@ export const useDeltaEditorCore = (
   };
 
   const insertText = (
-    index: number,
+    // index: number,
     text: string,
     attributes?: DeltaAttributes
   ): void => {
@@ -117,7 +117,7 @@ export const useDeltaEditorCore = (
     startIndex: number,
     endIndex: number,
     format: keyof DeltaAttributes,
-    value: boolean | number
+    value: string | number | boolean
   ): void => {
     const newDelta: Delta = [];
     let pos = 0;
@@ -160,13 +160,13 @@ export const useDeltaEditorCore = (
       if (overlapText) {
         const newAttts = { ...op.attributes } as any;
         if (newAttts?.__tempBreak) {
-          delete newAttts.__tempBreak; 
+          delete newAttts.__tempBreak;
         }
 
         if (value === false) {
-          delete newAttts[format]; 
+          delete newAttts[format];
         } else {
-          newAttts[format] = value; 
+          newAttts[format] = value;
         }
 
         newDelta.push({

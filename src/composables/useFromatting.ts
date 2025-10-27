@@ -11,7 +11,7 @@ export const useFormatting = (
       start: number,
       end: number,
       format: keyof DeltaAttributes,
-      value: boolean | number
+      value: boolean | number | string
     ) => void;
     renderToDOM: () => void;
   }
@@ -34,8 +34,12 @@ export const useFormatting = (
       const opEnd = pos + opLength;
 
       if (opEnd > start && opStart < end) {
-        if (format === "header") {
-          return op.attributes?.header !== undefined;
+        if (
+          format === "header" ||
+          format === "color" ||
+          format == "background"
+        ) {
+          return op.attributes?.[format] !== undefined;
         } else {
           return op.attributes?.[format] === true;
         }
@@ -47,7 +51,7 @@ export const useFormatting = (
 
   const applyFormat = (
     format: keyof DeltaAttributes,
-    value: boolean | number = true
+    value: boolean | number | string = true
   ) => {
     if (!editorElRef.value) return;
     selection.savedSelection();

@@ -11,6 +11,12 @@ const getAttributesFromElement = (el: HTMLElement): DeltaAttributes => {
   if (el.style.textDecoration?.includes("underline")) {
     attrs.underline = true;
   }
+  if (el.tagName === "S" || el.style.textDecoration?.includes("line-through")) {
+    attrs.strike = true;
+  }
+  if(el.tagName === 'A' && (el as any).href){
+    attrs.link = (el as any).href
+  }
 
   if (el.tagName === "H1") attrs.header = 1;
   if (el.tagName === "H2") attrs.header = 2;

@@ -143,7 +143,7 @@ export function deltaPositionToRange(
   // 光标在末尾（处理最后一个节点）
   if (textNodes.length > 0) {
     const lastNode = textNodes[textNodes.length - 1];
-    const rawText = lastNode!.textContent || "";
+    // const rawText = lastNode!.textContent || "";
     const range = document.createRange();
     range.setStartAfter(lastNode as Node); // 放在最后一个节点后面
     range.setEndAfter(lastNode as Node);
@@ -185,15 +185,16 @@ export function useSelection(editorRef: Ref<HTMLElement | null>) {
     }
   };
 
+  const clearSelection = (): void => {
+    savedDeltaRange = null;
+  };
+
   // 当前选区在文本中的位置
   const getSelectedDeltaRange = (): { start: number; end: number } | null => {
-    if (savedDeltaRange) {
-      return savedDeltaRange;
+    const selection = window.getSelection()
+    if(!selection || !editorRef.value || selection.rangeCount === 0){
+      return savedDeltaRange
     }
-
-    const selection = window.getSelection();
-    if (!selection || !editorRef.value || selection.rangeCount === 0)
-      return null;
     const range = selection.getRangeAt(0);
     return rangeToDeltaPostion(range, editorRef.value);
   };
@@ -223,6 +224,7 @@ export function useSelection(editorRef: Ref<HTMLElement | null>) {
   return {
     savedSelection,
     restoreSelection,
+    clearSelection,
     getSelectedDeltaRange,
     setSelectionByDeltaPosition,
   };

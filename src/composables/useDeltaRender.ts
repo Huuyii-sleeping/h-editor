@@ -6,12 +6,26 @@ const applyAttributes = (text: string, attrs: DeltaAttributes): Node => {
     el.textContent = text;
     return el;
   }
+  if (attrs.link) {
+    const a = document.createElement("a");
+    a.href = attrs.link;
+    a.textContent = text;
+    a.target = "_blank";
+    return a;
+  }
 
   const span = document.createElement("span");
   span.textContent = text;
   if (attrs.bold) span.style.fontWeight = "bold";
   if (attrs.italic) span.style.fontStyle = "italic";
   if (attrs.underline) span.style.textDecoration = "underline";
+  if (attrs.strike)
+    span.style.textDecoration = (
+      span.style.textDecoration + "line-through"
+    ).trim();
+  if (attrs.color) span.style.color = attrs.color;
+  if (attrs.background) span.style.backgroundColor = attrs.background;
+
   return span;
   // TODO: 列表需要进行特殊处理
 };
