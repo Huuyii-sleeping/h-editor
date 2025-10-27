@@ -14,6 +14,32 @@ function getTextNodes(element: Node): Text[] {
   return textNodes;
 }
 
+// 过滤文本中的零宽空格（仅用于计算，不影响原始文本）
+const removeZeroWidth = (text: string): string => text.replace(/\u200B/g, "");
+
+// 计算原始偏移在过滤零宽字符后的文本中的位置
+const mapRawOffsetToClean = (rawText: string, rawOffset: number): number => {
+  let cleanOffset = 0;
+  for (let i = 0; i < Math.min(rawOffset, rawText.length); i++) {
+    if (rawText[i] !== "\u200B") {
+      cleanOffset++;
+    }
+  }
+  return cleanOffset;
+};
+
+// 计算过滤零宽字符后的偏移在原始文本中的位置
+const mapCleanOffsetToRaw = (rawText: string, cleanOffset: number): number => {
+  let remaining = cleanOffset;
+  let rawOffset = 0;
+  for (; rawOffset < rawText.length; rawOffset++) {
+    if (rawText[rawOffset] !== "\u200B") {
+      remaining--;
+      if (remaining < 0) break;
+    }
+  }
+  return rawOffset;
+};
 /**
  * 将dom选区当中（range对象）转换成基于文本内容的的起始和结束偏移量（相对于整个编辑器的位置）
  * 简单的说，就是计算用户在编辑器中选中的文本在整个文本中起始和结束位置
@@ -28,46 +54,55 @@ export function rangeToDeltaPostion(
   const textNodes = getTextNodes(editorEl);
   if (textNodes.length === 0) return null;
 
-  let totalOffset = 0;
+  let totalCleanOffset = 0; // 累计过滤零宽字符后的偏移量
   let start: number | null = null;
   let end: number | null = null;
 
   for (const node of textNodes) {
-    const nodeLength = node.textContent?.length || 0;
-    const nodeStart = totalOffset;
-    const nodeEnd = totalOffset + nodeLength;
+    const rawText = node.textContent || "";
+    const cleanText = removeZeroWidth(rawText); // 过滤零宽字符
+    const cleanLength = cleanText.length;
 
+    const nodeCleanStart = totalCleanOffset;
+    const nodeCleanEnd = totalCleanOffset + cleanLength;
+
+    // 处理起始位置
     if (start === null) {
       if (range.startContainer === node) {
-        start = nodeStart + Math.min(range.startOffset, nodeLength);
+        // 原始偏移 → 过滤后的偏移
+        const cleanOffset = mapRawOffsetToClean(rawText, range.startOffset);
+        start = nodeCleanStart + cleanOffset;
       } else if (
         range.startContainer === node.parentElement &&
         Array.from(node.parentElement.childNodes).indexOf(node) >=
           range.startOffset
       ) {
-        // 简单的说就是选择了儿子节点，父节点不相同的情况
-        start = nodeStart;
+        start = nodeCleanStart; // 光标在当前节点前
       }
     }
 
+    // 处理结束位置
     if (end === null) {
       if (range.endContainer === node) {
-        end = nodeStart + Math.min(range.endOffset, nodeLength);
+        // 原始偏移 → 过滤后的偏移
+        const cleanOffset = mapRawOffsetToClean(rawText, range.endOffset);
+        end = nodeCleanStart + cleanOffset;
       } else if (
         range.endContainer === node.parentElement &&
         Array.from(node.parentElement.childNodes).indexOf(node) >=
           range.endOffset
       ) {
-        end = nodeStart;
+        end = nodeCleanStart; // 光标在当前节点前
       }
     }
 
     if (start !== null && end !== null) break;
-    totalOffset = nodeEnd;
+    totalCleanOffset = nodeCleanEnd; // 累加过滤后的长度
   }
 
-  if (start === null) start = totalOffset;
-  if (end === null) end = totalOffset;
+  // 兜底：确保位置在有效范围内
+  if (start === null) start = totalCleanOffset;
+  if (end === null) end = totalCleanOffset;
   return { start, end };
 }
 
@@ -82,27 +117,36 @@ export function deltaPositionToRange(
   editorEl: HTMLElement
 ): Range | null {
   const textNodes = getTextNodes(editorEl);
-  let totalOffset = 0;
+  let totalCleanOffset = 0; // 累计过滤零宽字符后的偏移量
 
   for (const node of textNodes) {
-    const nodeLength = node.textContent?.length || 0;
-    const nodeEnd = totalOffset + nodeLength;
+    const rawText = node.textContent || "";
+    const cleanText = removeZeroWidth(rawText);
+    const cleanLength = cleanText.length;
 
-    if (position <= nodeEnd) {
-      const offsetInNode = Math.max(0, position - totalOffset);
+    const nodeCleanEnd = totalCleanOffset + cleanLength;
+
+    if (position <= nodeCleanEnd) {
+      // 过滤后的偏移 → 原始文本中的偏移
+      const cleanOffsetInNode = Math.max(0, position - totalCleanOffset);
+      const rawOffsetInNode = mapCleanOffsetToRaw(rawText, cleanOffsetInNode);
+
       const range = document.createRange();
-      range.setStart(node, offsetInNode);
-      range.setEnd(node, offsetInNode);
+      range.setStart(node, rawOffsetInNode);
+      range.setEnd(node, rawOffsetInNode);
       return range;
     }
-    totalOffset += nodeLength;
+
+    totalCleanOffset = nodeCleanEnd;
   }
 
+  // 光标在末尾（处理最后一个节点）
   if (textNodes.length > 0) {
     const lastNode = textNodes[textNodes.length - 1];
+    const rawText = lastNode!.textContent || "";
     const range = document.createRange();
-    range.setStart(lastNode as Node, lastNode?.textContent?.length || 0);
-    range.setEnd(lastNode as Node, lastNode?.textContent?.length || 0);
+    range.setStartAfter(lastNode as Node); // 放在最后一个节点后面
+    range.setEndAfter(lastNode as Node);
     return range;
   }
   return null;

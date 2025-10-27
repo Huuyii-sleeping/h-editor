@@ -11,31 +11,29 @@ const core = useDeltaEditorCore(editorEl, selection);
 const formatting = useFormatting(editorEl, core);
 
 const toggleFormat = (format: "bold" | "italic" | "underline") => {
+  // const isActive = formatting.isFormatActive(format);
+  // const deltaRange = selection.getSelectedDeltaRange();
+  // const textLength = core.getText().length;
+  // const text = core.getText();
+  // const lastVisibleIndex = text.endsWith("\n") ? textLength - 1 : textLength;
+  // const isCaretAtEnd =
+  //   deltaRange &&
+  //   (deltaRange.end === lastVisibleIndex ||
+  //     (deltaRange.start === deltaRange.end &&
+  //       deltaRange.end >= lastVisibleIndex));
+  // if (isCaretAtEnd) {
+  //   if (isActive) {
+  //     selection.savedSelection();
+  //     core.formatRange(textLength, textLength, format, false);
+  //     core.insertStyleBreak();
+  //     core.renderToDOM();
+  //     selection.setSelectionByDeltaPosition(textLength + 1);
+  //   } else {
+  //     formatting.applyFormat(format, true);
+  //   }
+  //   return;
+  // }
   const isActive = formatting.isFormatActive(format);
-  const deltaRange = selection.getSelectedDeltaRange();
-  const textLength = core.getText().length;
-  const text = core.getText();
-  const lastVisibleIndex = text.endsWith("\n") ? textLength - 1 : textLength;
-  const isCaretAtEnd =
-    deltaRange &&
-    (deltaRange.end === lastVisibleIndex ||
-      (deltaRange.start === deltaRange.end &&
-        deltaRange.end >= lastVisibleIndex));
-  console.log(deltaRange)
-  console.log(lastVisibleIndex)
-  if (isCaretAtEnd) {
-    if (isActive) {
-      console.log(1111);
-      selection.savedSelection();
-      core.formatRange(textLength, textLength, format, false);
-      core.insertStyleBreak();
-      core.renderToDOM();
-      selection.setSelectionByDeltaPosition(textLength + 1);
-    } else {
-      formatting.applyFormat(format, true);
-    }
-    return;
-  }
   formatting.applyFormat(format, !isActive);
 };
 

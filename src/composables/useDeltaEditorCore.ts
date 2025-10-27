@@ -84,11 +84,11 @@ export const useDeltaEditorCore = (
     try {
       savedSelection();
       let newDelta = htmlToDelta(currentHTML);
-      newDelta = newDelta.filter((op) => {
+      newDelta = newDelta.filter((op: any) => {
         if (
           "insert" in op &&
           op.insert === "\u200B" &&
-          (op.attributes as any)?.__tempBreak
+          op.attributes?.__tempBreak
         ) {
           return false;
         }
@@ -119,30 +119,28 @@ export const useDeltaEditorCore = (
     format: keyof DeltaAttributes,
     value: boolean | number
   ): void => {
-    // 简化：重建delta
-    // 真实情况下需要遍历ops， 拆分，合并区间
-    // const text = getText();
     const newDelta: Delta = [];
     let pos = 0;
-    // let newStart = startIndex;
-    // let newEnd = endIndex;
-    // let isStartAdjusted = false;
-    // let isEndAdjusted = false;
 
     for (const op of delta.value) {
-      if (!("insert" in op)) continue;
-      // TODO delete retain 操作
+      if (!("insert" in op) || typeof op.insert !== "string") {
+        // 只处理字符串类型的insert
+        newDelta.push(op);
+        continue;
+      }
+
       const opText = op.insert;
       const opStart = pos;
       const opEnd = pos + opText.length;
-      // const originalPos = pos;
 
+      // 1. 完全不重叠的节点，直接保留
       if (opEnd <= startIndex || opStart >= endIndex) {
         newDelta.push(op);
         pos = opEnd;
         continue;
       }
 
+      // 2. 计算重叠区间并拆分文本
       const overlapStart = Math.max(opStart, startIndex);
       const overlapEnd = Math.min(opEnd, endIndex);
       const beforeText = opText.slice(0, overlapStart - opStart);
@@ -152,16 +150,6 @@ export const useDeltaEditorCore = (
       );
       const afterText = opText.slice(overlapEnd - opStart);
 
-      // if (!isStartAdjusted && startIndex >= opStart && endIndex <= opEnd) {
-      //   newStart = originalPos + (startIndex - opStart);
-      //   isStartAdjusted = true;
-      // }
-
-      // if (!isEndAdjusted && endIndex > opStart && endIndex <= opEnd) {
-      //   newEnd = originalPos + (endIndex - opStart);
-      //   isEndAdjusted = true;
-      // }
-
       if (beforeText) {
         newDelta.push({
           insert: beforeText,
@@ -170,19 +158,20 @@ export const useDeltaEditorCore = (
       }
 
       if (overlapText) {
-        // 处理重叠的部分，应用/移除样式
-        const newAttrs = { ...op.attributes } as any;
-        if (newAttrs?.__tempBreak) {
-          delete newAttrs.__tempBreak;
+        const newAttts = { ...op.attributes } as any;
+        if (newAttts?.__tempBreak) {
+          delete newAttts.__tempBreak; 
         }
+
         if (value === false) {
-          delete newAttrs[format];
+          delete newAttts[format]; 
         } else {
-          (newAttrs[format] as any) = value;
+          newAttts[format] = value; 
         }
+
         newDelta.push({
           insert: overlapText,
-          attributes: Object.keys(newAttrs).length > 0 ? newAttrs : undefined,
+          attributes: Object.keys(newAttts).length > 0 ? newAttts : undefined,
         });
       }
 
@@ -192,8 +181,10 @@ export const useDeltaEditorCore = (
           attributes: op.attributes,
         });
       }
+
       pos = opEnd;
     }
+
     delta.value = newDelta;
   };
 
@@ -220,9 +211,7 @@ export const useDeltaEditorCore = (
 
     newDelta.splice(insertPos, 0, {
       insert: "\u200B",
-      attributes: {
-        __tempBreak: true,
-      } as DeltaAttributes,
+      attributes: { __tempBreak: true } as DeltaAttributes,
     });
     delta.value = newDelta;
   };
