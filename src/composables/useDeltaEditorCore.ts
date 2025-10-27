@@ -83,8 +83,18 @@ export const useDeltaEditorCore = (
 
     try {
       savedSelection();
-      const newDalta = htmlToDelta(currentHTML);
-      delta.value = newDalta;
+      let newDelta = htmlToDelta(currentHTML);
+      newDelta = newDelta.filter((op) => {
+        if (
+          "insert" in op &&
+          op.insert === "\u200B" &&
+          (op.attributes as any)?.__tempBreak
+        ) {
+          return false;
+        }
+        return true;
+      });
+      delta.value = newDelta;
       lastHTML = currentHTML;
       restoreSelection();
     } catch (error) {
@@ -114,6 +124,10 @@ export const useDeltaEditorCore = (
     // const text = getText();
     const newDelta: Delta = [];
     let pos = 0;
+    // let newStart = startIndex;
+    // let newEnd = endIndex;
+    // let isStartAdjusted = false;
+    // let isEndAdjusted = false;
 
     for (const op of delta.value) {
       if (!("insert" in op)) continue;
@@ -121,52 +135,95 @@ export const useDeltaEditorCore = (
       const opText = op.insert;
       const opStart = pos;
       const opEnd = pos + opText.length;
+      // const originalPos = pos;
 
       if (opEnd <= startIndex || opStart >= endIndex) {
         newDelta.push(op);
-      } else {
-        const before = opStart < startIndex ? startIndex - opStart : 0;
-        const after = opEnd > endIndex ? opEnd - endIndex : 0;
-        const middle = opText.length - before - after;
+        pos = opEnd;
+        continue;
+      }
 
-        if (before > 0) {
-          newDelta.push({
-            insert: opText.substring(0, before),
-            attributes: op.attributes,
-          });
+      const overlapStart = Math.max(opStart, startIndex);
+      const overlapEnd = Math.min(opEnd, endIndex);
+      const beforeText = opText.slice(0, overlapStart - opStart);
+      const overlapText = opText.slice(
+        overlapStart - opStart,
+        overlapEnd - opStart
+      );
+      const afterText = opText.slice(overlapEnd - opStart);
+
+      // if (!isStartAdjusted && startIndex >= opStart && endIndex <= opEnd) {
+      //   newStart = originalPos + (startIndex - opStart);
+      //   isStartAdjusted = true;
+      // }
+
+      // if (!isEndAdjusted && endIndex > opStart && endIndex <= opEnd) {
+      //   newEnd = originalPos + (endIndex - opStart);
+      //   isEndAdjusted = true;
+      // }
+
+      if (beforeText) {
+        newDelta.push({
+          insert: beforeText,
+          attributes: op.attributes,
+        });
+      }
+
+      if (overlapText) {
+        // 处理重叠的部分，应用/移除样式
+        const newAttrs = { ...op.attributes } as any;
+        if (newAttrs?.__tempBreak) {
+          delete newAttrs.__tempBreak;
         }
-
-        if (middle > 0) {
-          const newAttrs = { ...op.attributes, [format]: value };
-          if (value === false) {
-            delete newAttrs[format];
-            if (Object.keys(newAttrs).length === 0) {
-              newDelta.push({
-                insert: opText.substring(before, before + middle),
-              });
-            } else {
-              newDelta.push({
-                insert: opText.substring(before, before + middle),
-                attributes: newAttrs,
-              });
-            }
-          } else {
-            newDelta.push({
-              insert: opText.substring(before, before + middle),
-              attributes: newAttrs,
-            });
-          }
+        if (value === false) {
+          delete newAttrs[format];
+        } else {
+          (newAttrs[format] as any) = value;
         }
+        newDelta.push({
+          insert: overlapText,
+          attributes: Object.keys(newAttrs).length > 0 ? newAttrs : undefined,
+        });
+      }
 
-        if (after > 0) {
-          newDelta.push({
-            insert: opText.substring(opText.length - after),
-            attributes: op.attributes,
-          });
+      if (afterText) {
+        newDelta.push({
+          insert: afterText,
+          attributes: op.attributes,
+        });
+      }
+      pos = opEnd;
+    }
+    delta.value = newDelta;
+  };
+
+  const insertStyleBreak = () => {
+    const newDelta = [...delta.value];
+    const text = getText();
+    const lastVisibleIndex = text.endsWith("\n")
+      ? text.length - 1
+      : text.length;
+    let insertPos = newDelta.length;
+    let currentLength = 0;
+
+    for (let i = 0; i < newDelta.length; i++) {
+      const op = newDelta[i];
+      if (!op) continue;
+      if ("insert" in op && typeof op.insert === "string") {
+        currentLength += op.insert.length;
+        if (currentLength >= lastVisibleIndex) {
+          insertPos = i + 1;
+          break;
         }
       }
-      pos += opText.length;
     }
+
+    newDelta.splice(insertPos, 0, {
+      insert: "\u200B",
+      attributes: {
+        __tempBreak: true,
+      } as DeltaAttributes,
+    });
     delta.value = newDelta;
   };
 
@@ -181,5 +238,6 @@ export const useDeltaEditorCore = (
     redo,
     canUndo: history.canUndo,
     canRedo: history.canRedo,
+    insertStyleBreak,
   };
 };

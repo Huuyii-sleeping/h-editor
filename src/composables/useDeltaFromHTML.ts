@@ -50,8 +50,13 @@ const walkDOM = (
     }
 
     // 块级元素做出特殊的处理
-    if (isBlock) {
-      delta.push({ insert: "\n" });
+    if (isBlock && children.length > 0) {
+      const hasNonEmptyChild = children.map((child) => {
+        child.nodeType === node.TEXT_NODE ? child.textContent?.trim() : true;
+      });
+      if (hasNonEmptyChild) {
+        delta.push({ insert: "\n" });
+      }
     }
   }
 };

@@ -12,7 +12,6 @@ export const useHistory = (maxStack = 100) => {
     if (history.value.length > maxStack) {
       history.value.shift();
     }
-    console.log("history:", history);
   };
 
   const undo = (): Delta | null => {

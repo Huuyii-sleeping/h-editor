@@ -6,7 +6,8 @@ function getTextNodes(element: Node): Text[] {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
   let node: Text | null;
   while ((node = walker.nextNode() as Text | null)) {
-    if (node.textContent && node.textContent.trim() !== "") {
+    const text = node.textContent || "";
+    if (text || text.includes("\u200B")) {
       textNodes.push(node);
     }
   }
@@ -38,11 +39,11 @@ export function rangeToDeltaPostion(
 
     if (start === null) {
       if (range.startContainer === node) {
-        start = nodeStart + range.startOffset;
+        start = nodeStart + Math.min(range.startOffset, nodeLength);
       } else if (
         range.startContainer === node.parentElement &&
-        range.startOffset <=
-          Array.from(node.parentElement.childNodes).indexOf(node)
+        Array.from(node.parentElement.childNodes).indexOf(node) >=
+          range.startOffset
       ) {
         // 简单的说就是选择了儿子节点，父节点不相同的情况
         start = nodeStart;
@@ -51,18 +52,18 @@ export function rangeToDeltaPostion(
 
     if (end === null) {
       if (range.endContainer === node) {
-        end = nodeStart + range.endOffset;
+        end = nodeStart + Math.min(range.endOffset, nodeLength);
       } else if (
         range.endContainer === node.parentElement &&
-        range.endOffset >
-          Array.from(node.parentElement.childNodes).indexOf(node)
+        Array.from(node.parentElement.childNodes).indexOf(node) >=
+          range.endOffset
       ) {
-        end = nodeEnd;
+        end = nodeStart;
       }
     }
 
     if (start !== null && end !== null) break;
-    totalOffset += nodeLength;
+    totalOffset = nodeEnd;
   }
 
   if (start === null) start = totalOffset;
