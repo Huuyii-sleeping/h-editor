@@ -13,7 +13,8 @@ body {
 
 ul,
 ol {
-  list-style: none;
+  /* list-style: none; */
+  margin-left: 15px;
 }
 
 /* 全局a标签基础样式 */

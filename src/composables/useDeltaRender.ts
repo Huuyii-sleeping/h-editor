@@ -32,21 +32,61 @@ const applyAttributes = (text: string, attrs: DeltaAttributes): Node => {
 
 export const deltaToHTML = (delta: Delta): string => {
   const container = document.createElement("div");
+  let currentList: { type: "ul" | "ol"; element: HTMLElement } | null = null;
 
   for (const op of delta) {
     if ("insert" in op) {
       const text = op.insert;
       if (text === "\n") {
+        if (currentList) {
+          container.appendChild((currentList as any).element);
+          currentList = null;
+        }
         container.appendChild(document.createElement("br"));
         continue;
       }
 
-      const node = op.attributes
-        ? applyAttributes(text, op.attributes)
-        : document.createTextNode(text);
-      container.appendChild(node);
+      const isListItem = op.attributes?.list;
+      const shouldCloseList =
+        currentList &&
+        (!isListItem ||
+          (isListItem === "bullet" && (currentList as any).type !== "ul") ||
+          (isListItem === "ordered" && (currentList as any).type !== "ol"));
+
+      if (shouldCloseList) {
+        container.appendChild((currentList as any)?.element);
+        currentList = null;
+      }
+      if (isListItem) {
+        if (!currentList) {
+          currentList = {
+            type: isListItem === "bullet" ? "ul" : "ol",
+            element: document.createElement(
+              isListItem === "bullet" ? "ul" : "ol"
+            ),
+          };
+        }
+        const li = document.createElement("li");
+        const node =
+          op.attributes && Object.keys(op.attributes).length > 1
+            ? applyAttributes(text, { ...op.attributes, list: undefined })
+            : document.createTextNode(text);
+        li.appendChild(node);
+        currentList.element.appendChild(li);
+      } else {
+        if (currentList) {
+          container.appendChild(currentList.element);
+          currentList = null;
+        }
+        const node = op.attributes
+          ? applyAttributes(text, op.attributes)
+          : document.createTextNode(text);
+        container.appendChild(node);
+      }
     }
-    // TODO：处理 delete和retain
+  }
+  if (currentList) {
+    container.appendChild(currentList.element);
   }
   return container.innerHTML;
 };

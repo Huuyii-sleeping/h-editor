@@ -2,6 +2,13 @@ import type { Delta, DeltaAttributes } from "../types/delta";
 
 const getAttributesFromElement = (el: HTMLElement): DeltaAttributes => {
   const attrs: DeltaAttributes = {};
+  if (el.parentElement?.tagName === "LI") {
+    if (el.parentElement.parentElement?.tagName === "UL") {
+      attrs.list = "bullet";
+    } else if (el.parentElement.parentElement?.tagName === "OL") {
+      attrs.list = "ordered";
+    }
+  }
   if (el.tagName === "STRONG" || el.style.fontWeight === "bold") {
     attrs.bold = true;
   }
@@ -14,14 +21,12 @@ const getAttributesFromElement = (el: HTMLElement): DeltaAttributes => {
   if (el.tagName === "S" || el.style.textDecoration?.includes("line-through")) {
     attrs.strike = true;
   }
-  if(el.tagName === 'A' && (el as any).href){
-    attrs.link = (el as any).href
+  if (el.tagName === "A" && (el as any).href) {
+    attrs.link = (el as any).href;
   }
 
   if (el.tagName === "H1") attrs.header = 1;
   if (el.tagName === "H2") attrs.header = 2;
-
-  // TODO 列表，链接等
 
   return attrs;
 };
@@ -46,7 +51,7 @@ const walkDOM = (
   if (node.nodeType === Node.ELEMENT_NODE) {
     const el = node as HTMLElement;
     const currentAttrs = { ...parentAttrs, ...getAttributesFromElement(el) };
-    const isBlock = ["H1", "H2", "P", "DIV", "UL", "OL", "LI"].includes(
+    const isBlock = ["H1", "H2", "P", "DIV"].includes(
       el.tagName
     );
     const children = Array.from(el.childNodes);

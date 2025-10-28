@@ -34,6 +34,9 @@ export const useFormatting = (
       const opEnd = pos + opLength;
 
       if (opEnd > start && opStart < end) {
+        if (format === "list") {
+          return getCurrentListType() !== null;
+        }
         if (
           format === "header" ||
           format === "color" ||
@@ -65,8 +68,42 @@ export const useFormatting = (
     selection.setSelectionByDeltaPosition(start, end);
   };
 
+  const getCurrentListType = (): "bullet" | "ordered" | null => {
+    const range = selection.getSelectedDeltaRange();
+    if (!range || range.start === range.end || core.delta.value.length === 0) {
+      return null;
+    }
+    const { start, end } = range;
+    let pos = 0;
+    for (const op of core.delta.value) {
+      if (!("insert" in op)) continue;
+      const opText = op.insert;
+      const opLength = opText.length;
+      const opStart = pos;
+      const opEnd = pos + opLength;
+      if (opEnd > start && opStart < end) {
+        if (op.attributes?.list) {
+          return op.attributes.list;
+        }
+      }
+      pos += opLength;
+    }
+    return null;
+  };
+
+  const toggleList = (type: "bullet" | "ordered") => {
+    const current = getCurrentListType();
+    if (current === type) {
+      applyFormat("list", false);
+    } else {
+      applyFormat("link", type);
+    }
+  };
+
   return {
     isFormatActive,
     applyFormat,
+    getCurrentListType,
+    toggleList,
   };
 };

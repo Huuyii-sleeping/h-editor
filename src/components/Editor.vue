@@ -28,11 +28,11 @@ const showLinkDialog = () => {
 
 const addLink = () => {
   if (linkUrl.value) {
-    selection.restoreSelection()
+    selection.restoreSelection();
     const deltaRange = selection.getSelectedDeltaRange();
     if (!deltaRange || deltaRange.start === deltaRange.end) {
       console.warn("No valid selection for link");
-      closeDialog()
+      closeDialog();
       return;
     }
     formatting.applyFormat("link", linkUrl.value);
@@ -47,33 +47,39 @@ const closeDialog = () => {
 };
 
 const toggleFormat = (format: keyof DeltaAttributes) => {
-  // const isActive = formatting.isFormatActive(format);
-  // const deltaRange = selection.getSelectedDeltaRange();
-  // const textLength = core.getText().length;
-  // const text = core.getText();
-  // const lastVisibleIndex = text.endsWith("\n") ? textLength - 1 : textLength;
-  // const isCaretAtEnd =
-  //   deltaRange &&
-  //   (deltaRange.end === lastVisibleIndex ||
-  //     (deltaRange.start === deltaRange.end &&
-  //       deltaRange.end >= lastVisibleIndex));
-  // if (isCaretAtEnd) {
-  //   if (isActive) {
-  //     selection.savedSelection();
-  //     core.formatRange(textLength, textLength, format, false);
-  //     core.insertStyleBreak();
-  //     core.renderToDOM();
-  //     selection.setSelectionByDeltaPosition(textLength + 1);
-  //   } else {
-  //     formatting.applyFormat(format, true);
-  //   }
-  //   return;
-  // }
   const isActive = formatting.isFormatActive(format);
   formatting.applyFormat(format, !isActive);
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === "Enter") {
+    const range = selection.getSelectedDeltaRange();
+    if (!range || range.start !== range.end || !editorEl.value) return;
+    const pos = range.start;
+    const currentFormat = getCurrentFormatAtPosition(pos, core.delta.value) as any;
+    if (currentFormat.list) {
+      e.preventDefault();
+
+      const text = core.getText();
+      const lineStart = getLineStart(text, pos);
+      const lineEnd = getLineEnd(text, pos);
+      const currentLine = text
+        .slice(lineStart, lineEnd)
+        .replace(/\u200B/g, "")
+        .trim();
+      const newDelta = [...core.delta.value];
+      insertAtPosition(newDelta, pos, "\n");
+      core.delta.value = newDelta;
+      if (currentLine === "") {
+        core.formatRange(pos + 1, pos + 1, "list", false);
+      } else {
+        core.formatRange(pos + 1, pos + 1, "list", currentFormat.list);
+      }
+      core.renderToDOM();
+      selection.setSelectionByDeltaPosition(pos + 1);
+      return;
+    }
+  }
   if (e.ctrlKey || e.metaKey) {
     if (e.key === "z" && !e.shiftKey) {
       e.preventDefault();
@@ -93,6 +99,60 @@ const handleKeydown = (e: KeyboardEvent) => {
     }
   }
 };
+
+const getCurrentFormatAtPosition = (
+  pos: number,
+  delta: any[]
+): DeltaAttributes | null => {
+  let currentPos = 0;
+  for (const op of delta) {
+    if (!("insert" in op) || typeof op.insert !== "string") continue;
+    const len = op.insert.length;
+    if (currentPos <= pos && pos < currentPos + len) {
+      return op.attributes || null;
+    }
+    currentPos += len;
+  }
+  return null;
+};
+
+const getLineStart = (text: string, pos: number): number => {
+  for (let i = pos - 1; i >= 0; i--) {
+    if (text[i] !== "\n") return i + 1;
+  }
+  return 0;
+};
+
+const getLineEnd = (text: string, pos: number): number => {
+  for (let i = pos; i < text.length; i++) {
+    if (text[i] === "\n") return i;
+  }
+  return text.length;
+};
+
+const insertAtPosition = (delta: any[], pos: number, text: string) => {
+  let currentPos = 0;
+  for (let i = 0; i < delta.length; i++) {
+    const op = delta[i];
+    if (!("insert" in op) || typeof op.insert !== "string") continue;
+    const len = op.insert.length;
+    if (currentPos <= pos && pos <= currentPos + len) {
+      const before = op.insert.slice(0, pos - currentPos);
+      const after = op.insert.slice(pos - currentPos);
+      delta.splice(
+        i,
+        1,
+        { insert: before, attributes: op.attributes },
+        { insert: text },
+        { insert: after, attributes: op.attributes }
+      );
+      return;
+    }
+    currentPos += len;
+  }
+  delta.push({ insert: text });
+};
+
 onMounted(() => {
   core.renderToDOM();
 });
@@ -138,6 +198,30 @@ onMounted(() => {
 
       <button class="toolbar-btn" @click="showLinkDialog" title="链接">
         🔗
+      </button>
+      <button
+        class="toolbar-btn"
+        @click="() => formatting.applyFormat('list', 'bullet')"
+        :class="{
+          active:
+            formatting.isFormatActive('list') &&
+            formatting.getCurrentListType() === 'bullet',
+        }"
+        title="无序列表"
+      >
+        •
+      </button>
+      <button
+        class="toolbar-btn"
+        @click="formatting.applyFormat('list', 'ordered')"
+        :class="{
+          active:
+            formatting.isFormatActive('list') &&
+            formatting.getCurrentListType() === 'ordered',
+        }"
+        title="有序列表"
+      >
+        1.
       </button>
 
       <!-- 分隔线 -->
