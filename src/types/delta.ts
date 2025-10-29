@@ -7,7 +7,8 @@ export interface DeltaAttributes {
   list?: "bullet" | "ordered";
   color?: string;
   background?: string;
-  link?: string
+  link?: string;
+  indent?: number;
 }
 
 export interface InsertOp {

@@ -17,6 +17,15 @@ const applyAttributes = (text: string, attrs: DeltaAttributes): Node => {
   const span = document.createElement("span");
   span.textContent = text;
   if (attrs.bold) span.style.fontWeight = "bold";
+  if (attrs.list) {
+    span.style.display = "list-item";
+    span.style.marginLeft = "20px";
+    if (attrs.list === "bullet") {
+      span.style.listStyleType = "disc";
+    } else if (attrs.list === "ordered") {
+      span.style.listStyleType = "decimal";
+    }
+  }
   if (attrs.italic) span.style.fontStyle = "italic";
   if (attrs.underline) span.style.textDecoration = "underline";
   if (attrs.strike)
@@ -25,14 +34,24 @@ const applyAttributes = (text: string, attrs: DeltaAttributes): Node => {
     ).trim();
   if (attrs.color) span.style.color = attrs.color;
   if (attrs.background) span.style.backgroundColor = attrs.background;
+  if (attrs.indent && attrs.indent > 0) {
+    span.style.marginLeft = `${attrs.indent * 20}px`;
+  }
 
   return span;
-  // TODO: 列表需要进行特殊处理
 };
 
 export const deltaToHTML = (delta: Delta): string => {
   const container = document.createElement("div");
+  let currentParagraph: HTMLElement | null = null;
   let currentList: { type: "ul" | "ol"; element: HTMLElement } | null = null;
+
+  // const flushParagraph = () => {
+  //   if (currentParagraph) {
+  //     container.appendChild(currentParagraph);
+  //     currentParagraph = null;
+  //   }
+  // };
 
   for (const op of delta) {
     if ("insert" in op) {

@@ -2,10 +2,11 @@ import type { Delta, DeltaAttributes } from "../types/delta";
 
 const getAttributesFromElement = (el: HTMLElement): DeltaAttributes => {
   const attrs: DeltaAttributes = {};
-  if (el.parentElement?.tagName === "LI") {
-    if (el.parentElement.parentElement?.tagName === "UL") {
+  if (el.tagName === "LI") {
+    const parent = el.parentElement;
+    if (parent?.tagName === "UL") {
       attrs.list = "bullet";
-    } else if (el.parentElement.parentElement?.tagName === "OL") {
+    } else if (parent?.tagName === "OL") {
       attrs.list = "ordered";
     }
   }
@@ -55,19 +56,19 @@ const walkDOM = (
       el.tagName
     );
     const children = Array.from(el.childNodes);
+    let hasText = false;
 
-    for (let i = 0; i < children.length; i++) {
-      walkDOM(children[i] as Node, delta, currentAttrs);
+    for (const child of children) {
+      const prevLength = delta.length;
+      walkDOM(child, delta, currentAttrs);
+      if (delta.length > prevLength) {
+        hasText = true;
+      }
     }
 
     // 块级元素做出特殊的处理
-    if (isBlock && children.length > 0) {
-      const hasNonEmptyChild = children.map((child) => {
-        child.nodeType === node.TEXT_NODE ? child.textContent?.trim() : true;
-      });
-      if (hasNonEmptyChild) {
-        delta.push({ insert: "\n" });
-      }
+    if (isBlock && hasText) {
+      delta.push({ insert: "\n" });
     }
   }
 };
@@ -92,5 +93,13 @@ export const htmlToDelta = (html: string): Delta => {
       merged.push(op);
     }
   }
-  return merged;
+  while (
+    merged.length > 0 &&
+    "insert" in (merged as any)[merged.length - 1] &&
+    (merged as any)[merged.length - 1].insert === "\n"
+  ) {
+    merged.pop();
+  }
+
+  return merged
 };

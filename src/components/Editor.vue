@@ -5,6 +5,7 @@ import { useFormatting } from "../composables/useFromatting";
 import { useDeltaEditorCore } from "../composables/useDeltaEditorCore";
 import { useSelection } from "../composables/useSelection";
 import type { DeltaAttributes } from "../types/delta";
+import { getLineEnd, getLineStart } from "../utils";
 
 const editorEl = ref<HTMLDivElement | null>(null);
 const selection = useSelection(editorEl);
@@ -52,11 +53,31 @@ const toggleFormat = (format: keyof DeltaAttributes) => {
 };
 
 const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const range = selection.getSelectedDeltaRange();
+    if (!range || !editorEl.value) return;
+    const { start } = range;
+    const text = core.getText();
+    const lineStart = getLineStart(text, start);
+    const currentFormat = getCurrentFormatAtPosition(lineStart);
+    console.log("lineStart:", lineStart);
+    console.log("currentFormat:", currentFormat);
+    if (currentFormat?.list) {
+      const newIndent = e.shiftKey
+        ? Math.max(0, (currentFormat.indent || 0) - 1)
+        : (currentFormat.indent || 0) + 1;
+      core.formatRange(lineStart, lineStart + 1, "indent", newIndent);
+      core.renderToDOM();
+      selection.setSelectionByDeltaPosition(start);
+    }
+    return;
+  }
   if (e.key === "Enter") {
     const range = selection.getSelectedDeltaRange();
     if (!range || range.start !== range.end || !editorEl.value) return;
     const pos = range.start;
-    const currentFormat = getCurrentFormatAtPosition(pos, core.delta.value) as any;
+    const currentFormat = getCurrentFormatAtPosition(pos) as any;
     if (currentFormat.list) {
       e.preventDefault();
 
@@ -86,7 +107,6 @@ const handleKeydown = (e: KeyboardEvent) => {
       core.undo();
     } else if (e.key == "y" || (e.key === "z" && e.shiftKey)) {
       e.preventDefault();
-      console.log(e);
       core.redo();
     } else if (e.key === "b") {
       e.preventDefault();
@@ -100,12 +120,14 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 };
 
-const getCurrentFormatAtPosition = (
-  pos: number,
-  delta: any[]
-): DeltaAttributes | null => {
+const getCurrentFormatAtPosition = (pos: number): DeltaAttributes | null => {
+  const textLength = core.getText().length;
+  if (pos > textLength) return null;
+  if (pos === textLength && pos > 0) {
+    pos = textLength - 1;
+  }
   let currentPos = 0;
-  for (const op of delta) {
+  for (const op of core.delta.value) {
     if (!("insert" in op) || typeof op.insert !== "string") continue;
     const len = op.insert.length;
     if (currentPos <= pos && pos < currentPos + len) {
@@ -114,20 +136,6 @@ const getCurrentFormatAtPosition = (
     currentPos += len;
   }
   return null;
-};
-
-const getLineStart = (text: string, pos: number): number => {
-  for (let i = pos - 1; i >= 0; i--) {
-    if (text[i] !== "\n") return i + 1;
-  }
-  return 0;
-};
-
-const getLineEnd = (text: string, pos: number): number => {
-  for (let i = pos; i < text.length; i++) {
-    if (text[i] === "\n") return i;
-  }
-  return text.length;
 };
 
 const insertAtPosition = (delta: any[], pos: number, text: string) => {
@@ -201,7 +209,7 @@ onMounted(() => {
       </button>
       <button
         class="toolbar-btn"
-        @click="() => formatting.applyFormat('list', 'bullet')"
+        @click="() => formatting.toggleListAtCoder('bullet')"
         :class="{
           active:
             formatting.isFormatActive('list') &&
@@ -213,7 +221,7 @@ onMounted(() => {
       </button>
       <button
         class="toolbar-btn"
-        @click="formatting.applyFormat('list', 'ordered')"
+        @click="formatting.toggleListAtCoder('ordered')"
         :class="{
           active:
             formatting.isFormatActive('list') &&
