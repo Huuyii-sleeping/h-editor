@@ -61,8 +61,6 @@ const handleKeydown = (e: KeyboardEvent) => {
     const text = core.getText();
     const lineStart = getLineStart(text, start);
     const currentFormat = getCurrentFormatAtPosition(lineStart);
-    console.log("lineStart:", lineStart);
-    console.log("currentFormat:", currentFormat);
     if (currentFormat?.list) {
       const newIndent = e.shiftKey
         ? Math.max(0, (currentFormat.indent || 0) - 1)
@@ -329,6 +327,11 @@ onMounted(() => {
     />
     <button @click="addLink">Yes</button>
     <button @click="closeDialog">No</button>
+  </div>
+  <div>
+    <pre>
+    {{ JSON.stringify(core.delta.value, null, 2) }}
+    </pre>
   </div>
 </template>
 

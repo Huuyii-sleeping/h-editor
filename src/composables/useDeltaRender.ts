@@ -1,6 +1,6 @@
-import type { Delta, DeltaAttributes } from "../types/delta";
+import type { Delta, DeltaAttributes, InsertOp } from "../types/delta";
 
-const applyAttributes = (text: string, attrs: DeltaAttributes): Node => {
+const applyAttributes = (text: string, attrs: DeltaAttributes): HTMLElement => {
   if (attrs.header) {
     const el = document.createElement(`h${attrs.header}`);
     el.textContent = text;
@@ -45,67 +45,146 @@ export const deltaToHTML = (delta: Delta): string => {
   const container = document.createElement("div");
   let currentParagraph: HTMLElement | null = null;
   let currentList: { type: "ul" | "ol"; element: HTMLElement } | null = null;
+  let prevElement: HTMLElement | null = null;
 
-  // const flushParagraph = () => {
-  //   if (currentParagraph) {
-  //     container.appendChild(currentParagraph);
-  //     currentParagraph = null;
-  //   }
-  // };
+  const flushParagraph = () => {
+    if (currentParagraph) {
+      container.appendChild(currentParagraph);
+      currentParagraph = null;
+    }
+  };
+
+  const flushList = () => {
+    if (currentList) {
+      container.appendChild(currentList.element);
+      currentList = null;
+    }
+  };
+
+  const createParagraph = () => {
+    currentParagraph = document.createElement("div");
+  };
+
+  const createList = (type: "bullet" | "ordered") => {
+    const listElement = document.createElement(type === "bullet" ? "ul" : "ol");
+    currentList = {
+      type: type === "bullet" ? "ul" : "ol",
+      element: listElement,
+    };
+  };
+
+  const handleParagraph = (op: any) => {
+    let text = op.insert;
+    let attributes = op.attributes || {};
+    let findEnterIndex = text.indexOf("\n");
+    if (findEnterIndex === -1) {
+      prevElement = attributes
+        ? applyAttributes(text, { ...attributes })
+        : (() => {
+            const span = document.createElement("span");
+            span.textContent = text;
+            return span;
+          })();
+      if (!prevElement.textContent) prevElement.textContent = " ";
+      if (!currentParagraph) createParagraph();
+      currentParagraph?.appendChild(prevElement as HTMLElement);
+    } else {
+      while (findEnterIndex !== -1) {
+        const storeText = text.slice(0, findEnterIndex);
+        const node = attributes
+          ? applyAttributes(storeText, { ...attributes })
+          : (() => {
+              const span = document.createElement("span");
+              span.textContent = storeText;
+              return span;
+            })();
+        if (!node.textContent) node.textContent = "";
+        if (!currentParagraph) createParagraph();
+        currentParagraph?.appendChild(node);
+        const br = document.createElement("br");
+        currentParagraph?.appendChild(br);
+        flushParagraph();
+        text = text.slice(findEnterIndex + 1);
+        findEnterIndex = text.indexOf("\n");
+      }
+      prevElement = attributes
+        ? applyAttributes(text, { ...attributes })
+        : (() => {
+            const span = document.createElement("span");
+            span.textContent = text;
+            return span;
+          })();
+      if (!prevElement.textContent) prevElement.textContent = " ";
+      if (!currentParagraph) createParagraph();
+      currentParagraph?.appendChild(prevElement as HTMLElement);
+    }
+  };
+
+  const handleList = (op: InsertOp) => {
+    let text = op.insert;
+    let attributes = op.attributes || {};
+    let listType = attributes.list;
+    if (!listType) return;
+
+    const targetListType = listType === "bullet" ? "ul" : "ol";
+    if (!currentList || currentList.type !== targetListType) {
+      flushList();
+      createList(listType);
+    }
+    const listItem = document.createElement("li");
+    let findEnterIndex = text.indexOf("\n");
+    if (findEnterIndex === -1) {
+      const node = attributes
+        ? applyAttributes(text, { ...attributes, list: undefined })
+        : (() => {
+            const span = document.createElement("span");
+            span.textContent = text;
+            return span;
+          })();
+      if (!node.textContent) node.textContent = " ";
+      listItem.appendChild(node);
+    } else {
+      while (findEnterIndex !== -1) {
+        const storeText = text.slice(0, findEnterIndex);
+        const node = attributes
+          ? applyAttributes(storeText, { ...attributes, list: undefined })
+          : (() => {
+              const span = document.createElement("span");
+              span.textContent = storeText;
+              return span;
+            })();
+        if (!node.textContent) node.textContent = " ";
+        listItem.appendChild(node);
+        const br = document.createElement("br");
+        listItem.appendChild(br);
+        text = text.slice(findEnterIndex + 1);
+        findEnterIndex = text.indexOf("\n");
+      }
+      const node = attributes
+        ? applyAttributes(text, { ...attributes, list: undefined })
+        : (() => {
+            const span = document.createElement("span");
+            span.textContent = text;
+            return span;
+          })();
+      if (!node.textContent) node.textContent = " ";
+      listItem.appendChild(node);
+    }
+    currentList?.element.appendChild(listItem);
+  };
 
   for (const op of delta) {
-    if ("insert" in op) {
-      const text = op.insert;
-      if (text === "\n") {
-        if (currentList) {
-          container.appendChild((currentList as any).element);
-          currentList = null;
-        }
-        container.appendChild(document.createElement("br"));
-        continue;
-      }
-
-      const isListItem = op.attributes?.list;
-      const shouldCloseList =
-        currentList &&
-        (!isListItem ||
-          (isListItem === "bullet" && (currentList as any).type !== "ul") ||
-          (isListItem === "ordered" && (currentList as any).type !== "ol"));
-
-      if (shouldCloseList) {
-        container.appendChild((currentList as any)?.element);
-        currentList = null;
-      }
-      if (isListItem) {
-        if (!currentList) {
-          currentList = {
-            type: isListItem === "bullet" ? "ul" : "ol",
-            element: document.createElement(
-              isListItem === "bullet" ? "ul" : "ol"
-            ),
-          };
-        }
-        const li = document.createElement("li");
-        const node =
-          op.attributes && Object.keys(op.attributes).length > 1
-            ? applyAttributes(text, { ...op.attributes, list: undefined })
-            : document.createTextNode(text);
-        li.appendChild(node);
-        currentList.element.appendChild(li);
-      } else {
-        if (currentList) {
-          container.appendChild(currentList.element);
-          currentList = null;
-        }
-        const node = op.attributes
-          ? applyAttributes(text, op.attributes)
-          : document.createTextNode(text);
-        container.appendChild(node);
-      }
+    if (!("insert" in op)) continue;
+    const insertOp = op as InsertOp;
+    const hasList = insertOp.attributes?.list;
+    if (hasList) {
+      handleList(insertOp);
+    } else {
+      handleParagraph(insertOp);
     }
   }
-  if (currentList) {
-    container.appendChild(currentList.element);
-  }
+  // 记得最后刷新内容
+  flushParagraph();
+  flushList();
   return container.innerHTML;
 };

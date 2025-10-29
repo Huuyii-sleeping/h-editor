@@ -52,22 +52,14 @@ const walkDOM = (
   if (node.nodeType === Node.ELEMENT_NODE) {
     const el = node as HTMLElement;
     const currentAttrs = { ...parentAttrs, ...getAttributesFromElement(el) };
-    const isBlock = ["H1", "H2", "P", "DIV"].includes(
-      el.tagName
-    );
+    const isBlock = ["H1", "H2", "P", "DIV"].includes(el.tagName);
     const children = Array.from(el.childNodes);
-    let hasText = false;
 
     for (const child of children) {
-      const prevLength = delta.length;
       walkDOM(child, delta, currentAttrs);
-      if (delta.length > prevLength) {
-        hasText = true;
-      }
     }
 
-    // 块级元素做出特殊的处理
-    if (isBlock && hasText) {
+    if (isBlock) {
       delta.push({ insert: "\n" });
     }
   }
@@ -77,7 +69,9 @@ export const htmlToDelta = (html: string): Delta => {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = html;
   const delta: Delta = [];
-  walkDOM(wrapper, delta);
+  for (const element of wrapper.children) {
+    walkDOM(element, delta);
+  }
   const merged: Delta = [];
   //   优化：进行样式的合并
   for (const op of delta) {
@@ -95,11 +89,9 @@ export const htmlToDelta = (html: string): Delta => {
   }
   while (
     merged.length > 0 &&
-    "insert" in (merged as any)[merged.length - 1] &&
     (merged as any)[merged.length - 1].insert === "\n"
   ) {
     merged.pop();
   }
-
-  return merged
+  return merged;
 };

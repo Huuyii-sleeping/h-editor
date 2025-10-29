@@ -1,3 +1,5 @@
+
+
 export const getLineStart = (text: string, pos: number): number => {
   if (pos > text.length) pos = text.length;
   if (pos === text.length && pos > 0) {
@@ -17,3 +19,4 @@ export const getLineEnd = (text: string, pos: number): number => {
   }
   return text.length;
 };
+

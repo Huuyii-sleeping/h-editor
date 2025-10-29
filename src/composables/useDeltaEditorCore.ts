@@ -9,7 +9,7 @@ export const useDeltaEditorCore = (
   editorElRef: Ref<HTMLDivElement | null>,
   selectionManager?: ReturnType<typeof useSelection>
 ) => {
-  const delta = ref<Delta>([{ insert: "欢迎使用 Delta 编辑器\n" }]);
+  const delta = ref<Delta>([{ insert: "欢迎使用 Delta 编辑器" }]);
   let lastHTML = deltaToHTML(delta.value);
   let isRendering = false;
   let undoing = false;
@@ -80,7 +80,6 @@ export const useDeltaEditorCore = (
 
     const currentHTML = editorElRef.value.innerHTML;
     if (currentHTML === lastHTML) return;
-
     try {
       savedSelection();
       let newDelta = htmlToDelta(currentHTML);
